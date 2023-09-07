@@ -1,5 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js')
 
+//TODO: correct the bug of require in diferent folder
+
 module.exports = {
   cooldown: 5,
   data: new SlashCommandBuilder()
