@@ -1,12 +1,13 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js')
+const { Client, Collection, GatewayIntentBits } = require('discord.js')
 const { token } = require('./config.json')
 
 //creates a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] })
 
 client.commands = new Collection()
+client.cooldowns = new Collection()
 
 const foldersPath = path.join(__dirname, 'commands')
 const commandFolders = fs.readdirSync(foldersPath)
@@ -28,32 +29,19 @@ for(const folder of commandFolders) {
   }
 }
 
-client.once(Events.ClientReady, c => {
-  console.log(`Ready! Logged in as ${c.user.tag}`)
-})
+const eventsPath = path.join(__dirname, 'events')
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
-client.on(Events.InteractionCreate, async interaction => {
-  if(!interaction.isChatInputCommand()) return;
+for(const file of eventFiles) {
+  const filePath = path.join(eventsPath, file)
+  const event = require(filePath)
 
-  const command = interaction.client.commands.get(interaction.commandName)
-
-  if(!command) {
-    console.error(`No command matching ${interaction.commandName} was found.`)
-    return
+  if(event.once) {
+    client.once(event.name, (...args) => event.execute(...args));
   }
-
-  try {
-    await command.execute(interaction)
+  else {
+    client.on(event.name, (...args) => event.execute(...args));
   }
-  catch(error) {
-    console.error(error)
-    if(interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'The was an error while executing this command', ephemeral: true})
-    }
-    else {
-      await interaction.reply({content: 'The was an error while executing this command', ephemeral: true})
-    }
-  }
-})
+}
 
 client.login(token)
